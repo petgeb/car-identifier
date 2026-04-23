@@ -20,7 +20,7 @@ A zero-install, mobile-first web app that identifies any car you point your came
 
 ## Usage
 
-Open `index.html` directly in a browser, or serve it from any static host (GitHub Pages, Netlify, Vercel, etc.).
+Open `index.html` directly in a browser, or serve it from any static file host (GitHub Pages, Netlify, Vercel, etc.).
 
 ```
 # Serve locally
