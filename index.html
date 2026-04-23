@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Car Identifier</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131a;
+      --surface2: #1c1c26;
+      --border: rgba(255,255,255,0.07);
+      --accent: #e8ff47;
+      --accent2: #47ffd4;
+      --text: #f0f0f0;
+      --muted: rgba(240,240,240,0.45);
+      --danger: #ff4747;
+      --radius: 16px;
+      --font: 'Syne', sans-serif;
+      --mono: 'DM Mono', monospace;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      overflow-x: hidden;
+    }
+
+    /* ── SCREENS ── */
+    .screen {
+      min-height: 100dvh;
+      display: none;
+      flex-direction: column;
+      padding: 0;
+    }
+    .screen.active { display: flex; }
+
+    /* ── SETUP SCREEN ── */
+    #setup-screen {
+      justify-content: center;
+      align-items: center;
+      padding: 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+    #setup-screen::before {
+      content: '';
+      position: absolute;
+      width: 500px; height: 500px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(232,255,71,0.08) 0%, transparent 70%);
+      top: -100px; left: -100px;
+      pointer-events: none;
+    }
+    #setup-screen::after {
+      content: '';
+      position: absolute;
+      width: 400px; height: 400px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(71,255,212,0.06) 0%, transparent 70%);
+      bottom: -80px; right: -80px;
+      pointer-events: none;
+    }
+    .setup-inner {
+      width: 100%;
+      max-width: 420px;
+      position: relative;
+      z-index: 1;
+    }
+    .logo-mark {
+      width: 56px; height: 56px;
+      border-radius: 14px;
+      background: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 1.5rem;
+    }
+    .logo-mark svg { width: 28px; height: 28px; }
+    h1 {
+      font-size: clamp(2rem, 8vw, 2.8rem);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.5rem;
+    }
+    h1 span { color: var(--accent); }
+    .tagline {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-bottom: 2.5rem;
+      line-height: 1.6;
+    }
+    .field-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+    .api-input-wrap {
+      position: relative;
+      margin-bottom: 1rem;
+    }
+    .api-input-wrap input {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.9rem 3rem 0.9rem 1rem;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .api-input-wrap input:focus { border-color: rgba(232,255,71,0.4); }
+    .api-input-wrap input::placeholder { color: var(--muted); }
+    .toggle-key {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); padding: 4px;
+    }
+    .toggle-key:hover { color: var(--text); }
+    .hint {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 2rem;
+      line-height: 1.5;
+    }
+    .hint a { color: var(--accent2); text-decoration: none; }
+    .btn-primary {
+      width: 100%;
+      padding: 1rem;
+      background: var(--accent);
+      color: #0a0a0f;
+      border: none;
+      border-radius: 12px;
+      font-family: var(--font);
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(232,255,71,0.25); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    /* ── CAMERA SCREEN ── */
+    #camera-screen { background: #000; position: relative; }
+    #video {
+      width: 100%; height: 100dvh;
+      object-fit: cover;
+      display: block;
+    }
+    .camera-ui {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+    .cam-top {
+      padding: 1rem 1rem 0;
+      display: flex; justify-content: space-between; align-items: flex-start;
+      pointer-events: all;
+    }
+    .gps-pill {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 100px;
+      padding: 6px 12px;
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      color: #fff;
+      transition: opacity 0.3s;
+    }
+    .gps-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #ccc;
+      transition: background 0.3s;
+    }
+    .gps-dot.active { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+    .btn-back {
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 100px;
+      color: #fff;
+      font-family: var(--font);
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 6px 14px;
+      cursor: pointer;
+    }
+    .viewfinder {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -60%);
+      width: min(75vw, 280px);
+      aspect-ratio: 16/9;
+    }
+    .vf-corner {
+      position: absolute;
+      width: 20px; height: 20px;
+      border-color: rgba(232,255,71,0.8);
+      border-style: solid;
+    }
+    .vf-corner.tl { top:0; left:0; border-width: 2px 0 0 2px; }
+    .vf-corner.tr { top:0; right:0; border-width: 2px 2px 0 0; }
+    .vf-corner.bl { bottom:0; left:0; border-width: 0 0 2px 2px; }
+    .vf-corner.br { bottom:0; right:0; border-width: 0 2px 2px 0; }
+    .vf-label {
+      position: absolute;
+      bottom: -24px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.7rem;
+      color: rgba(232,255,71,0.7);
+      letter-spacing: 0.1em;
+      white-space: nowrap;
+    }
+    .cam-bottom {
+      padding: 2rem 2rem 3rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      pointer-events: all;
+    }
+    .coords-bar {
+      display: flex; gap: 1.5rem;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 10px 20px;
+    }
+    .coord-item { text-align: center; }
+    .coord-label {
+      font-size: 0.6rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.4);
+      display: block;
+    }
+    .coord-value {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      color: #fff;
+    }
+    .shutter-wrap {
+      display: flex; align-items: center; justify-content: center;
+    }
+    .shutter {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      background: #fff;
+      border: 4px solid rgba(255,255,255,0.3);
+      box-shadow: 0 0 0 2px #fff, 0 0 24px rgba(232,255,71,0.3);
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s;
+      position: relative;
+    }
+    .shutter:active { transform: scale(0.93); }
+    .shutter::after {
+      content: '';
+      position: absolute;
+      inset: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .shutter:active::after { opacity: 1; }
+
+    /* file input fallback */
+    #file-input { display: none; }
+    .btn-file {
+      background: rgba(255,255,255,0.08);
+      border: 1px dashed rgba(255,255,255,0.2);
+      border-radius: 10px;
+      color: rgba(255,255,255,0.6);
+      font-family: var(--font);
+      font-size: 0.78rem;
+      padding: 8px 16px;
+      cursor: pointer;
+    }
+    .canvas-hidden { display: none; }
+
+    /* ── ANALYZING OVERLAY ── */
+    #analyzing-overlay {
+      position: fixed; inset: 0;
+      background: rgba(10,10,15,0.88);
+      backdrop-filter: blur(12px);
+      z-index: 100;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5rem;
+    }
+    #analyzing-overlay.active { display: flex; }
+    .spinner {
+      width: 52px; height: 52px;
+      border: 3px solid rgba(232,255,71,0.15);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .analyzing-text {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    /* ── RESULT SCREEN ── */
+    #result-screen { overflow-y: auto; }
+    .result-hero {
+      position: relative;
+      width: 100%;
+      height: 50dvh;
+      min-height: 220px;
+      overflow: hidden;
+    }
+    #result-img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .result-hero-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(to bottom, transparent 40%, var(--bg) 100%);
+    }
+    .confidence-badge {
+      position: absolute;
+      top: 1rem; right: 1rem;
+      background: var(--accent);
+      color: #0a0a0f;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 500;
+      padding: 5px 12px;
+      border-radius: 100px;
+    }
+    .result-body {
+      padding: 0 1.25rem 3rem;
+      margin-top: -2rem;
+      position: relative;
+    }
+    .result-brand {
+      font-size: clamp(1.8rem, 8vw, 2.4rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+    }
+    .result-brand span { color: var(--accent); }
+    .result-meta {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-top: 4px;
+      margin-bottom: 1.5rem;
+    }
+    .info-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+    .info-card-header {
+      padding: 10px 16px;
+      background: var(--surface2);
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-key {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .info-val {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--text);
+      text-align: right;
+    }
+    .tags-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 1.5rem;
+    }
+    .tag {
+      background: rgba(71,255,212,0.1);
+      border: 1px solid rgba(71,255,212,0.2);
+      color: var(--accent2);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 100px;
+      letter-spacing: 0.04em;
+    }
+    .btn-again {
+      width: 100%;
+      padding: 1rem;
+      background: transparent;
+      color: var(--accent);
+      border: 1.5px solid rgba(232,255,71,0.4);
+      border-radius: 12px;
+      font-family: var(--font);
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .btn-again:hover { background: rgba(232,255,71,0.07); border-color: var(--accent); }
+
+    /* ── ERROR TOAST ── */
+    #error-toast {
+      position: fixed;
+      bottom: 1.5rem; left: 1rem; right: 1rem;
+      background: var(--danger);
+      color: #fff;
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      z-index: 200;
+      display: none;
+      animation: slideUp 0.3s ease;
+    }
+    #error-toast.active { display: block; }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } }
+
+    /* ── SAFE AREA ── */
+    @supports (padding: max(0px)) {
+      .cam-bottom { padding-bottom: max(3rem, env(safe-area-inset-bottom) + 1.5rem); }
+      .result-body { padding-bottom: max(3rem, env(safe-area-inset-bottom) + 1.5rem); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ SETUP SCREEN ══ -->
+<div id="setup-screen" class="screen active">
+  <div class="setup-inner">
+    <div class="logo-mark">
+      <svg viewBox="0 0 28 28" fill="none">
+        <path d="M4 20 Q4 10 10 7 L14 5 Q18 3 22 7 L24 10 Q26 14 24 18 L22 21 Q18 25 14 23 L10 21 Q4 22 4 20Z" fill="#0a0a0f" stroke="#0a0a0f" stroke-width="0.5"/>
+        <circle cx="9" cy="20" r="2.5" fill="#0a0a0f" stroke="#0a0a0f"/>
+        <circle cx="19" cy="20" r="2.5" fill="#0a0a0f" stroke="#0a0a0f"/>
+      </svg>
+    </div>
+    <h1>Car<span>ID</span></h1>
+    <p class="tagline">Point your camera at any car. Get the brand, model, and location — instantly.</p>
+
+    <label class="field-label" for="api-key-input">Anthropic API Key</label>
+    <div class="api-input-wrap">
+      <input type="password" id="api-key-input" placeholder="sk-ant-..." autocomplete="off" spellcheck="false" />
+      <button class="toggle-key" id="toggle-key" title="Show/hide key">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
+    <p class="hint">Your key stays in your browser only — never sent anywhere except Anthropic's API. Get a free key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a></p>
+
+    <button class="btn-primary" id="start-btn">Open Camera →</button>
+  </div>
+</div>
+
+<!-- ══ CAMERA SCREEN ══ -->
+<div id="camera-screen" class="screen">
+  <video id="video" autoplay playsinline muted></video>
+  <canvas id="canvas" class="canvas-hidden"></canvas>
+  <input type="file" id="file-input" accept="image/*" capture="environment" />
+
+  <div class="camera-ui">
+    <div class="cam-top">
+      <div class="gps-pill" id="gps-pill">
+        <div class="gps-dot" id="gps-dot"></div>
+        <span id="gps-status">Locating…</span>
+      </div>
+      <button class="btn-back" id="back-btn">← Back</button>
+    </div>
+
+    <div class="viewfinder">
+      <div class="vf-corner tl"></div>
+      <div class="vf-corner tr"></div>
+      <div class="vf-corner bl"></div>
+      <div class="vf-corner br"></div>
+      <div class="vf-label">AIM AT CAR</div>
+    </div>
+
+    <div class="cam-bottom">
+      <div class="coords-bar" id="coords-bar">
+        <div class="coord-item">
+          <span class="coord-label">Lat</span>
+          <span class="coord-value" id="lat-val">—</span>
+        </div>
+        <div class="coord-item">
+          <span class="coord-label">Long</span>
+          <span class="coord-value" id="lng-val">—</span>
+        </div>
+        <div class="coord-item">
+          <span class="coord-label">Alt</span>
+          <span class="coord-value" id="alt-val">—</span>
+        </div>
+      </div>
+
+      <div class="shutter-wrap">
+        <button class="shutter" id="shutter-btn" title="Take photo"></button>
+      </div>
+      <label class="btn-file" for="file-input">Or upload a photo</label>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ANALYZING OVERLAY ══ -->
+<div id="analyzing-overlay">
+  <div class="spinner"></div>
+  <div class="analyzing-text">Analyzing car…</div>
+</div>
+
+<!-- ══ RESULT SCREEN ══ -->
+<div id="result-screen" class="screen">
+  <div class="result-hero">
+    <img id="result-img" src="" alt="Captured car" />
+    <div class="result-hero-overlay"></div>
+    <div class="confidence-badge" id="confidence-badge"></div>
+  </div>
+  <div class="result-body">
+    <div class="result-brand" id="result-brand"></div>
+    <div class="result-meta" id="result-meta"></div>
+
+    <div class="tags-wrap" id="tags-wrap"></div>
+
+    <div class="info-card" id="location-card">
+      <div class="info-card-header">📍 Location captured</div>
+      <div class="info-row">
+        <span class="info-key">Latitude</span>
+        <span class="info-val" id="r-lat">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-key">Longitude</span>
+        <span class="info-val" id="r-lng">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-key">Altitude</span>
+        <span class="info-val" id="r-alt">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-key">Accuracy</span>
+        <span class="info-val" id="r-acc">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-key">Captured at</span>
+        <span class="info-val" id="r-time">—</span>
+      </div>
+    </div>
+
+    <button class="btn-again" id="again-btn">Take Another Photo</button>
+  </div>
+</div>
+
+<!-- ══ ERROR TOAST ══ -->
+<div id="error-toast"></div>
+
+<script>
+  // ── State ──
+  let apiKey = '';
+  let gpsData = null;
+  let stream = null;
+
+  // ── Elements ──
+  const screens = {
+    setup: document.getElementById('setup-screen'),
+    camera: document.getElementById('camera-screen'),
+    result: document.getElementById('result-screen'),
+  };
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  const fileInput = document.getElementById('file-input');
+  const overlay = document.getElementById('analyzing-overlay');
+  const errorToast = document.getElementById('error-toast');
+  const gpsDot = document.getElementById('gps-dot');
+  const gpsStatus = document.getElementById('gps-status');
+
+  // ── Screen switching ──
+  function show(name) {
+    Object.values(screens).forEach(s => s.classList.remove('active'));
+    screens[name].classList.add('active');
+  }
+
+  // ── Error toast ──
+  let toastTimer;
+  function showError(msg) {
+    errorToast.textContent = msg;
+    errorToast.classList.add('active');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => errorToast.classList.remove('active'), 5000);
+  }
+
+  // ── Toggle API key visibility ──
+  document.getElementById('toggle-key').addEventListener('click', () => {
+    const inp = document.getElementById('api-key-input');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+  });
+
+  // ── Start button ──
+  document.getElementById('start-btn').addEventListener('click', async () => {
+    const key = document.getElementById('api-key-input').value.trim();
+    if (!key.startsWith('sk-ant-')) {
+      showError('Please enter a valid Anthropic API key (starts with sk-ant-)');
+      return;
+    }
+    apiKey = key;
+    show('camera');
+    await startCamera();
+    startGPS();
+  });
+
+  // ── Back button ──
+  document.getElementById('back-btn').addEventListener('click', () => {
+    stopCamera();
+    show('setup');
+  });
+
+  // ── Again button ──
+  document.getElementById('again-btn').addEventListener('click', () => {
+    show('camera');
+    if (!stream) startCamera();
+  });
+
+  // ── Camera ──
+  async function startCamera() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false
+      });
+      video.srcObject = stream;
+    } catch (err) {
+      showError('Camera access denied. Use the "upload a photo" option below.');
+    }
+  }
+
+  function stopCamera() {
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+    }
+  }
+
+  // ── GPS ──
+  function startGPS() {
+    if (!navigator.geolocation) {
+      gpsStatus.textContent = 'GPS unavailable';
+      return;
+    }
+    navigator.geolocation.watchPosition(
+      pos => {
+        gpsData = pos;
+        const { latitude: lat, longitude: lng, altitude: alt } = pos.coords;
+        gpsDot.classList.add('active');
+        gpsStatus.textContent = 'GPS locked';
+        document.getElementById('lat-val').textContent = lat.toFixed(5) + '°';
+        document.getElementById('lng-val').textContent = lng.toFixed(5) + '°';
+        document.getElementById('alt-val').textContent = alt !== null ? Math.round(alt) + 'm' : '—';
+      },
+      () => { gpsStatus.textContent = 'GPS unavailable'; },
+      { enableHighAccuracy: true, maximumAge: 3000 }
+    );
+  }
+
+  // ── Capture from camera ──
+  document.getElementById('shutter-btn').addEventListener('click', () => {
+    if (!stream) { fileInput.click(); return; }
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    canvas.toBlob(blob => {
+      if (blob) processImage(blob);
+    }, 'image/jpeg', 0.88);
+  });
+
+  // ── Capture from file ──
+  fileInput.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (file) processImage(file);
+    fileInput.value = '';
+  });
+
+  // ── Process image ──
+  async function processImage(blob) {
+    const capturedGPS = gpsData ? { ...gpsData.coords, timestamp: new Date() } : null;
+    const objectUrl = URL.createObjectURL(blob);
+
+    overlay.classList.add('active');
+
+    try {
+      const base64 = await blobToBase64(blob);
+      const result = await analyzeWithClaude(base64);
+      showResult(result, objectUrl, capturedGPS);
+    } catch (err) {
+      showError('Analysis failed: ' + (err.message || 'Unknown error'));
+      overlay.classList.remove('active');
+    }
+  }
+
+  function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  // ── Claude API ──
+  async function analyzeWithClaude(base64) {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-calls': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-5',
+        max_tokens: 512,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: 'image/jpeg', data: base64 }
+            },
+            {
+              type: 'text',
+              text: `Identify the car in this image. Reply ONLY with a valid JSON object and nothing else:
+{
+  "brand": "Toyota",
+  "model": "Corolla",
+  "year": "2021",
+  "confidence": "92%",
+  "tags": ["Sedan", "Japanese", "Economy"]
+}
+If no car is visible, set brand to "Unknown" and model to "No car detected". Tags should be 2-4 short descriptive words about the car type, origin, or segment.`
+            }
+          ]
+        }]
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error?.message || `API error ${response.status}`);
+    }
+
+    const data = await response.json();
+    const text = data.content?.[0]?.text || '';
+    const clean = text.replace(/```json|```/g, '').trim();
+
+    try {
+      return JSON.parse(clean);
+    } catch {
+      throw new Error('Could not parse car data from response.');
+    }
+  }
+
+  // ── Show result ──
+  function showResult(car, imageUrl, gps) {
+    overlay.classList.remove('active');
+    stopCamera();
+
+    document.getElementById('result-img').src = imageUrl;
+    document.getElementById('confidence-badge').textContent = car.confidence || '—';
+
+    const brand = document.getElementById('result-brand');
+    brand.innerHTML = `<span>${car.brand}</span> ${car.model}`;
+
+    document.getElementById('result-meta').textContent =
+      [car.year, car.type].filter(Boolean).join(' · ') || '';
+
+    const tagsWrap = document.getElementById('tags-wrap');
+    tagsWrap.innerHTML = '';
+    (car.tags || []).forEach(tag => {
+      const el = document.createElement('span');
+      el.className = 'tag';
+      el.textContent = tag;
+      tagsWrap.appendChild(el);
+    });
+
+    if (gps) {
+      document.getElementById('r-lat').textContent = gps.latitude.toFixed(6) + '°';
+      document.getElementById('r-lng').textContent = gps.longitude.toFixed(6) + '°';
+      document.getElementById('r-alt').textContent = gps.altitude !== null ? Math.round(gps.altitude) + ' m' : 'N/A';
+      document.getElementById('r-acc').textContent = '±' + Math.round(gps.accuracy) + ' m';
+      document.getElementById('r-time').textContent = new Date().toLocaleTimeString();
+      document.getElementById('location-card').style.display = '';
+    } else {
+      document.getElementById('location-card').style.display = 'none';
+    }
+
+    show('result');
+  }
+</script>
+</body>
+</html>
